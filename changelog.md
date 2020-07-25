@@ -2,13 +2,75 @@
 
 ## [Unreleased](https://github.com/CE-Programming/toolchain/tree/HEAD)
 
-[Full commit list](https://github.com/CE-Programming/toolchain/compare/v8.6...HEAD)
+[Full commit list](https://github.com/CE-Programming/toolchain/compare/v9.0...HEAD)
+
+
+# [v9.0](https://github.com/CE-Programming/toolchain/releases/tag/v9.0) (2020-??-??)
+
+ - The toolchain is now powered by LLVM instead of ZDS
+ - Headers updated to more recent C with better macros etc.
+ - Standard includes are now more correct
+ - Some "hacks" like `_OS` and `_asm` aren't needed anymore
+ - The makefile supports C++ correctly now (at your own risk)
+ - Improved autotests for the examples
+ - fasmg got a speed boost thanks to CALM instructions.
+ - Submodules updates
+
+# [v8.8](https://github.com/CE-Programming/toolchain/releases/tag/v8.8) (2020-01-??)
+
+ - Documentation fixes and headers cleanup
+ - Fix `gfx_TilePtr` and `gfx_TilePtrMapped`
+ - Expose more OS functions (see `tice.h`)
+ - Add LCD cursor defines
+ - MMIO defines are all volatile
+ - Submodules update
+ - "development library" generation
+ - Examples folders hierarchy improved
+ - Prepare makefile for future changes
+ - Fix warnings
+ 
+[Full commit list](https://github.com/CE-Programming/toolchain/compare/v8.6...v8.7)
+
+# [v8.7](https://github.com/CE-Programming/toolchain/releases/tag/v8.7) (2019-08-25)
+
+ - Documentation fixes
+ - Fix `gfx_Begin` signature
+ - Fix `gfx_RotateSpriteC`
+ - Fix `ti_Str0` value and add missing `ti_Str9`
+ - Fix `gfx_SetCharData` (#221)
+ - Improve build
+ - Add `ti_ArchiveHasRoom`
+ 
+[Full commit list](https://github.com/CE-Programming/toolchain/compare/v8.6...v8.7)
 
 # [v8.6](https://github.com/CE-Programming/toolchain/releases/tag/v8.6) (2019-06-30)
+
+ - New libray: FontLib by DrDnar
+ - Add `kb_IsDown` keypadc macro
+ - Add `gfx_CopyRectangle`
+ - Add `os_TestFlagBitsFast`
+ - Fix `gfx_GetClipRegion`
+ - Fix `getstringinput`
+ - Fix `strncasecmp`
+ - Fix `ti_SetArchiveStatus` ignoring archived argument
+ - Improve comments and `printTextSmall` function
+ - Improve `gfx_Wait`
+ - Improve CI
+ - Improve build files in general, more parallel and portability support
+ - More documentation
 
 [Full commit list](https://github.com/CE-Programming/toolchain/compare/v8.5...v8.6)
 
 # [v8.5](https://github.com/CE-Programming/toolchain/releases/tag/v8.5) (2018-10-31)
+
+ - LibLoad and linker improvements
+ - AppVeyor CI support
+ - Fix `ti_RclVar`
+ - Improve and fix tests in general
+ - Optimize a few graphx routines (SetPalette, SetClipRegion, RLETSprite)
+ - Add `os_NewLine`
+ - Fix MMIO defines (size/volatility) in tice.h
+ - Add 32-bit "atomic" load functions and stopwatch example
 
 [Full commit list](https://github.com/CE-Programming/toolchain/compare/v8.4...v8.5)
 

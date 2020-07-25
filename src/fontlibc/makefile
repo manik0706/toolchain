@@ -12,7 +12,7 @@ FASMG ?=fasmg
 ifeq ($(OS),Windows_NT)
 SHELL       =cmd.exe
 NATIVEPATH  =$(subst /,\,$(1))
-RM          =del /f 2>nul
+RM          =del /f /q 2>nul
 MKDIR       =mkdir
 CP          =copy /y
 PREFIX     ?=C:
@@ -42,7 +42,7 @@ $(LIB_8XV): $(SRC)
 	$(FASMG) $< $@
 
 clean:
-	$(RM) $(LIB) $(LIB_8XV)
+	$(RM) $(LIB)  $(LIB_8XV)
 
 install:
 	$(CP) $(LIB_H) $(H_LOC)

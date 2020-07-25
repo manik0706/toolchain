@@ -69,6 +69,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -567,7 +568,7 @@ char fontlib_GetFirstGlyph(void);
 
 /**
  * Allows you to set the code point that is recognized as being a new line code.
- * You can set this to zero to prevent new line code processing.  
+ * You can set this to zero to prevent new line code processing.
  * @note If FONTLIB_ENABLE_AUTO_WRAP is enabled, then wrapping will still
  * implicitly case a newline.
  * @note This defaults to 0x0A (ASCII line feed/UNIX newline)
@@ -681,7 +682,7 @@ char *fontlib_GetLastCharacterRead(void);
 size_t fontlib_GetCharactersRemaining(void);
 
 /**
- * Draws a glyph.  
+ * Draws a glyph.
  * @note This can even draw code points less than the code point specified with
  * fontlib_SetFirstPrintableCodePoint().  It can even draw code point 0.
  * @note Although this does update the cursor X/Y positions, it does NOT
@@ -787,7 +788,7 @@ void fontlib_SetNewlineOptions(uint8_t options);
  */
 uint8_t fontlib_GetNewlineOptions(void);
 
-/** 
+/**
  * Scrolls the contents of the text window down one line, i.e. everything in
  * the window is copied UP one line, thus yielding the effect of scrolling down.
  * The current text cursor position is ignored.
@@ -795,7 +796,7 @@ uint8_t fontlib_GetNewlineOptions(void);
  */
 void fontlib_ScrollWindowDown(void);
 
-/** 
+/**
  * Scrolls the contents of the text window up one line, i.e. everything in
  * the window is copied DOWN one line, thus yielding the effect of scrolling up.
  * The current text cursor position is ignored.
@@ -815,7 +816,7 @@ void fontlib_ScrollWindowUp(void);
  * NOTA BENE: Any operation that can move variables around in memory can
  * invalidate this pointer!
  */
-char *fontlib_GetFontPackName(char *appvar_name);
+char *fontlib_GetFontPackName(const char *appvar_name);
 
 /**
  * Gets a pointer to a font, suitable for passing to SetFont(), given a font
@@ -825,7 +826,7 @@ char *fontlib_GetFontPackName(char *appvar_name);
  * @param index Index into font table of font pack
  * @return Direct pointer to font, or NULL if the index is invalid.
  */
-fontlib_font_t *fontlib_GetFontByIndexRaw(fontlib_font_pack_t *font_pack, uint8_t index);
+fontlib_font_t *fontlib_GetFontByIndexRaw(const fontlib_font_pack_t *font_pack, uint8_t index);
 
 /**
  * Gets a pointer to a font, suitable for passing to SetFont(), given a font
@@ -836,7 +837,7 @@ fontlib_font_t *fontlib_GetFontByIndexRaw(fontlib_font_pack_t *font_pack, uint8_
  * @param index Index into font table of font pack
  * @return Direct pointer to font, or NULL if the index is invalid.
  */
-fontlib_font_t *fontlib_GetFontByIndex(char *font_pack_name, uint8_t index);
+fontlib_font_t *fontlib_GetFontByIndex(const char *font_pack_name, uint8_t index);
 
 /**
  * Gets a pointer to a font, suitable for passing to SetFont(), given a font
@@ -855,7 +856,7 @@ fontlib_font_t *fontlib_GetFontByIndex(char *font_pack_name, uint8_t index);
  * FONTLIB_MONOSPACE to REJECT monospaced fonts.
  * @return Direct pointer to font, or NULL if no matching font is found
  */
- fontlib_font_t *fontlib_GetFontByStyleRaw(fontlib_font_pack_t *font_pack, uint8_t size_min, uint8_t size_max, uint8_t weight_min, uint8_t weight_max, uint8_t style_bits_set, uint8_t style_bits_reset);
+ fontlib_font_t *fontlib_GetFontByStyleRaw(const fontlib_font_pack_t *font_pack, uint8_t size_min, uint8_t size_max, uint8_t weight_min, uint8_t weight_max, uint8_t style_bits_set, uint8_t style_bits_reset);
 
 /**
  * Gets a pointer to a font, suitable for passing to SetFont(), given a font
@@ -874,7 +875,7 @@ fontlib_font_t *fontlib_GetFontByIndex(char *font_pack_name, uint8_t index);
  * FONTLIB_MONOSPACE to REJECT monospaced fonts.
  * @return Direct pointer to font, or NULL if no matching font is found
  */
-fontlib_font_t *fontlib_GetFontByStyle(char *font_pack_name, uint8_t size_min, uint8_t size_max, uint8_t weight_min, uint8_t weight_max, uint8_t style_bits_set, uint8_t style_bits_reset);
+fontlib_font_t *fontlib_GetFontByStyle(const char *font_pack_name, uint8_t size_min, uint8_t size_max, uint8_t weight_min, uint8_t weight_max, uint8_t style_bits_set, uint8_t style_bits_reset);
 
 
 #ifdef __cplusplus

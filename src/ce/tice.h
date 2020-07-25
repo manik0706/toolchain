@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#define tiflags __attribute__((__tiflags__))
+
 /*
  * Hardware & custom macros/functions
  */
@@ -117,7 +119,7 @@ uint32_t atomic_load_decreasing_32(volatile uint32_t *p);
 #define RTC_UNFREEZE            (1<<7)
 #define RTC_FREEZE              (0<<7)
 #define RTC_LOAD                (1<<6)
-#define RTC_ENABLE              ((1<<0)|(RTC_UNFREEZE))
+#define RTC_ENABLE              ((1<<0)|RTC_UNFREEZE)
 #define RTC_DISABLE             (0<<0)
 
 /* RTC registers */
@@ -125,17 +127,17 @@ uint32_t atomic_load_decreasing_32(volatile uint32_t *p);
 #define rtc_Minutes             (*(volatile uint8_t*)0xF30004)
 #define rtc_Hours               (*(volatile uint8_t*)0xF30008)
 #define rtc_Days                (*(volatile uint16_t*)0xF3000C)
-#define rtc_AlarmSeconds        (*(uint8_t*)0xF30010)
-#define rtc_AlarmMinutes        (*(uint8_t*)0xF30014)
-#define rtc_AlarmHours          (*(uint8_t*)0xF30018)
-#define rtc_Control             (*(uint8_t*)0xF30020)
-#define rtc_LoadSeconds         (*(uint8_t*)0xF30024)
-#define rtc_LoadMinutes         (*(uint8_t*)0xF30028)
-#define rtc_LoadHours           (*(uint8_t*)0xF3002C)
-#define rtc_LoadDays            (*(uint16_t*)0xF30030)
+#define rtc_AlarmSeconds        (*(volatile uint8_t*)0xF30010)
+#define rtc_AlarmMinutes        (*(volatile uint8_t*)0xF30014)
+#define rtc_AlarmHours          (*(volatile uint8_t*)0xF30018)
+#define rtc_Control             (*(volatile uint8_t*)0xF30020)
+#define rtc_LoadSeconds         (*(volatile uint8_t*)0xF30024)
+#define rtc_LoadMinutes         (*(volatile uint8_t*)0xF30028)
+#define rtc_LoadHours           (*(volatile uint8_t*)0xF3002C)
+#define rtc_LoadDays            (*(volatile uint16_t*)0xF30030)
 #define rtc_IntStatus           (*(volatile uint8_t*)0xF30034)
 #define rtc_IntAcknowledge      (*(volatile uint8_t*)0xF30034)
-#define rtc_IsBusy()            (rtc_Control & RTC_LOAD)
+#define rtc_IsBusy()            ((rtc_Control) & RTC_LOAD)
 
 /* RTC interrupt masks */
 #define RTC_ALARM_INT_SOURCE    (1<<5)
@@ -196,39 +198,53 @@ uint32_t atomic_load_decreasing_32(volatile uint32_t *p);
 
 /* Timer registers */
 #define timer_1_Counter          (*(volatile uint32_t*)0xF20000)
-#define timer_1_ReloadValue      (*(uint32_t*)0xF20004)
-#define timer_1_MatchValue_1     (*(uint32_t*)0xF20008)
-#define timer_1_MatchValue_2     (*(uint32_t*)0xF2000C)
+#define timer_1_ReloadValue      (*(volatile uint32_t*)0xF20004)
+#define timer_1_MatchValue_1     (*(volatile uint32_t*)0xF20008)
+#define timer_1_MatchValue_2     (*(volatile uint32_t*)0xF2000C)
 #define timer_2_Counter          (*(volatile uint32_t*)0xF20010)
-#define timer_2_ReloadValue      (*(uint32_t*)0xF20014)
-#define timer_2_MatchValue_1     (*(uint32_t*)0xF20018)
-#define timer_2_MatchValue_2     (*(uint32_t*)0xF2001C)
+#define timer_2_ReloadValue      (*(volatile uint32_t*)0xF20014)
+#define timer_2_MatchValue_1     (*(volatile uint32_t*)0xF20018)
+#define timer_2_MatchValue_2     (*(volatile uint32_t*)0xF2001C)
 #define timer_3_Counter          (*(volatile uint32_t*)0xF20020)
-#define timer_3_ReloadValue      (*(uint32_t*)0xF20024)
-#define timer_3_MatchValue_1     (*(uint32_t*)0xF20028)
-#define timer_3_MatchValue_2     (*(uint32_t*)0xF2002C)
-#define timer_Control            (*(uint16_t*)0xF20030)
+#define timer_3_ReloadValue      (*(volatile uint32_t*)0xF20024)
+#define timer_3_MatchValue_1     (*(volatile uint32_t*)0xF20028)
+#define timer_3_MatchValue_2     (*(volatile uint32_t*)0xF2002C)
+#define timer_Control            (*(volatile uint16_t*)0xF20030)
 #define timer_IntStatus          (*(volatile uint16_t*)0xF20034)
 #define timer_IntAcknowledge     (*(volatile uint16_t*)0xF20034)
-#define timer_EnableInt          (*(uint16_t*)0xF20038)
+#define timer_EnableInt          (*(volatile uint16_t*)0xF20038)
 
 /* LCD defines */
-#define lcd_BacklightLevel       (*(uint8_t*)0xF60024) /* Current backlight level of the LCD. 0 is bright. 255 is dark. */
-#define lcd_Timing0              (*(uint32_t*)0xE30000)
-#define lcd_Timing1              (*(uint32_t*)0xE30004)
-#define lcd_Timing2              (*(uint32_t*)0xE30008)
-#define lcd_Timing3              (*(uint24_t*)0xE3000C)
-#define lcd_UpBase               (*(uint32_t*)0xE30010)
-#define lcd_LpBase               (*(uint32_t*)0xE30014)
-#define lcd_Control              (*(uint24_t*)0xE30018)
-#define lcd_EnableInt            (*(uint8_t*)0xE3001C)
-#define lcd_IntStatus            (*(uint8_t*)0xE30020)
-#define lcd_IntStatusMasked      (*(uint8_t*)0xE30024)
+#define lcd_Ram                  ((volatile uint16_t*)0xD40000)
+#define lcd_Timing0              (*(volatile uint32_t*)0xE30000)
+#define lcd_Timing1              (*(volatile uint32_t*)0xE30004)
+#define lcd_Timing2              (*(volatile uint32_t*)0xE30008)
+#define lcd_Timing3              (*(volatile uint24_t*)0xE3000C)
+#define lcd_UpBase               (*(volatile uint32_t*)0xE30010)
+#define lcd_LpBase               (*(volatile uint32_t*)0xE30014)
+#define lcd_Control              (*(volatile uint24_t*)0xE30018)
+#define lcd_EnableInt            (*(volatile uint8_t*)0xE3001C)
+#define lcd_IntStatus            (*(volatile uint8_t*)0xE30020)
+#define lcd_IntStatusMasked      (*(volatile uint8_t*)0xE30024)
 #define lcd_IntAcknowledge       (*(volatile uint8_t*)0xE30028)
 #define lcd_UpBaseCurr           (*(volatile uint32_t*)0xE3002C)
 #define lcd_LpBaseCurr           (*(volatile uint32_t*)0xE30030)
-#define lcd_Palette              ((uint16_t*)0xE30200)
-#define lcd_Ram                  ((uint16_t*)0xD40000) 
+#define lcd_Palette              ((volatile uint16_t*)0xE30200)
+#define lcd_CrsrCtrl             (*(volatile uint8_t*)0xE30C00)
+#define lcd_CrsrConfig           (*(volatile uint8_t*)0xE30C04)
+#define lcd_CrsrPalette0         (*(volatile uint24_t*)0xE30C08)
+#define lcd_CrsrPalette1         (*(volatile uint24_t*)0xE30C0C)
+#define lcd_CrsrXY               (*(volatile uint32_t*)0xE30C10)
+#define lcd_CrsrX                (*(volatile uint16_t*)0xE30C10)
+#define lcd_CrsrY                (*(volatile uint16_t*)0xE30C12)
+#define lcd_CrsrClip             (*(volatile uint16_t*)0xE30C04)
+#define lcd_CrsrClipX            (*(volatile uint8_t*)0xE30C04)
+#define lcd_CrsrClipY            (*(volatile uint8_t*)0xE30C05)
+#define lcd_CrsrEnableInt        (*(volatile uint8_t*)0xE30C20)
+#define lcd_CrsrIntAcknowledge   (*(volatile uint8_t*)0xE30C24)
+#define lcd_CrsrIntStatus        (*(volatile uint8_t*)0xE30C28)
+#define lcd_CrsrIntStatusMasked  (*(volatile uint8_t*)0xE30C2C)
+#define lcd_BacklightLevel       (*(volatile uint8_t*)0xF60024) /* Current backlight level of the LCD. 0 is bright. 255 is dark. */
 
 /**
  * Width of LCD in pixels
@@ -318,12 +334,12 @@ typedef struct font {
 /**
  * Resets the OS homescreen; accounts for split screen
  */
-#define os_ClrHome() do { _OS(asm_ClrLCD); _OS(asm_HomeUp); _OS(asm_DrawStatusBar); } while (0)
+#define os_ClrHome() do { asm_ClrLCD(); asm_HomeUp(); asm_DrawStatusBar(); } while (0)
 
 /**
  * Resets the OS homescreen fully
  */
-#define os_ClrHomeFull() do { _OS(asm_ClrLCDFull); _OS(asm_HomeUp); _OS(asm_DrawStatusBar); } while (0)
+#define os_ClrHomeFull() do { asm_ClrLCDFull(); asm_HomeUp(); asm_DrawStatusBar(); } while (0)
 
 /**
  * TIOS small font.
@@ -444,6 +460,12 @@ void boot_WaitShort(void);
 /*
  * OS Routines
  */
+
+/**
+ * Inserts a new line at the current cursor posistion on the homescreen
+ * Does scroll.
+ */
+tiflags void os_NewLine(void);
 
 /**
  * Disables the OS cursor
@@ -872,7 +894,7 @@ int24_t os_RealToInt24(const real_t *arg);
  * Converts an integer to a real_t
  * @note Saturates on overflow
  */
-real_t os_Int24ToReal(int24_t arg);
+tiflags real_t os_Int24ToReal(int24_t arg);
 
 /**
  * Converts a real_t to a float
@@ -1044,6 +1066,83 @@ int8_t os_MSDWrite(uint8_t lun, uint8_t blockCount, uint32_t lba, uint24_t block
 int8_t os_USBGetRequestStatus(void);
 
 /**
+ * Executes the assembly routine _ForceCmdNoChar
+ */
+void os_ForceCmdNoChar(void);
+
+/**
+ * Inserts a new line at the current cursor posistion on the homescreen
+ * Does scroll.
+ */
+tiflags void os_NewLine(void);
+
+/**
+ * Routine to scroll homescreen up
+ */
+tiflags void os_MoveUp(void);
+
+/**
+ * Routine to scroll homescreen down
+ */
+tiflags void os_MoveDown(void);
+
+/**
+ * Routine to move row and column posistion to (0,0)
+ */
+tiflags void os_HomeUp(void);
+
+/**
+ * Routine to turn on the Run Indicator
+ */
+tiflags void os_RunIndicOn(void);
+
+/**
+ * Routine to turn off the Run Indicator
+ */
+tiflags void os_RunIndicOff(void);
+
+/**
+ * Routine to turn off APD
+ */
+tiflags void os_DisableAPD(void);
+
+/**
+ * Routine to turn on APD
+ */
+tiflags void os_EnableAPD(void);
+
+/**
+ * Routine checks the amount of free archive
+ */
+tiflags void os_ArcChk(void);
+
+/**
+ * Routine to clear the homescreen lcd
+ */
+tiflags void os_ClrLCDFull(void);
+
+/**
+ * Routine to clear the homescreen lcd.
+ * Accounts for split screen
+ */
+tiflags void os_ClrLCD(void);
+
+/**
+ * Routine to redraw the status bar
+ */
+tiflags void os_DrawStatusBar(void);
+
+/**
+ * Invalidate and clear stat variables
+ */
+tiflags void os_DelRes(void);
+
+/**
+ * Invalidate and clear text shadow area
+ */
+tiflags void os_ClrTxtShd(void);
+
+/**
  * Runs the calulator at 6 MHz
  */
 void boot_Set6MHzMode(void);
@@ -1063,88 +1162,7 @@ void boot_Set6MHzModeI(void);
  */
 void boot_Set48MHzModeI(void);
 
-/**
- * Executes the assembly routine _ForceCmdNoChar
- */
-void os_ForceCmdNoChar(void);
-
-/**
- * Use this function to call assembly functions in the OS and Bootcode
- * i.e. _OS( asm_ArcChk );
- */
-void _OS(void (*function)(void));
-
-/**
- * Inserts a new line at the current cursor posistion on the homescreen
- * Does scroll.
- */
-void asm_NewLine(void);
-
-/**
- * Assembly routine to scroll homescreen up
- */
-void asm_MoveUp(void);
-
-/**
- * Assembly routine to scroll homescreen down
- */
-void asm_MoveDown(void);
-
-/**
- * Assembly routine to move row and column posistion to (0,0)
- */
-void asm_HomeUp(void);
-
-/**
- * Assembly routine to turn on the Run Indicator
- */
-void asm_RunIndicOn(void);
-
-/**
- * Assembly routine to turn off the Run Indicator
- */
-void asm_RunIndicOff(void);
-
-/**
- * Assembly routine to turn off APD
- */
-void asm_DisableAPD(void);
-
-/**
- * Assembly routine to turn on APD
- */
-void asm_EnableAPD(void);
-
-/**
- * Assembly routine checks the amount of free archive
- */
-void asm_ArcChk(void);
-
-/**
- * Assembly routine to clear the homescreen lcd
- */
-void asm_ClrLCDFull(void);
-
-/**
- * Assembly routine to clear the homescreen lcd.
- * Accounts for split screen
- */
-void asm_ClrLCD(void);
-
-/**
- * Assembly routine to redraw the status bar
- */
-void asm_DrawStatusBar(void);
-
-/**
- * Invalidate and clear stat variables
- */
-void asm_DelRes(void);
-
-/**
- * Invalidate and clear text shadow area
- */
-void asm_ClrTxtShd(void);
+#undef tiflags
 
 /**
  * Colors used by the OS
@@ -2305,6 +2323,21 @@ typedef enum {
 #define prgm_CleanUp()
 #define pgrm_CleanUp()
 #define memset_fast memset
+#define _OS(function) function()
+#define asm_NewLine os_NewLine
+#define asm_MoveUp os_MoveUp
+#define asm_MoveDown os_MoveDown
+#define asm_HomeUp os_HomeUp
+#define asm_RunIndicOn os_RunIndicOn
+#define asm_RunIndicOff os_RunIndicOff
+#define asm_DisableAPD os_DisableAPD
+#define asm_EnableAPD os_EnableAPD
+#define asm_ArcChk os_ArcChk
+#define asm_ClrLCDFull os_ClrLCDFull
+#define asm_ClrLCD os_ClrLCD
+#define asm_DrawStatusBar os_DrawStatusBar
+#define asm_DelRes os_DelRes
+#define asm_ClrTxtShd os_ClrTxtShd
 
 #ifdef __cplusplus
 }

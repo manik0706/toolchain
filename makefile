@@ -19,7 +19,7 @@ ifeq ($(OS),Windows_NT)
 SHELL      = cmd.exe
 NATIVEPATH = $(subst /,\,$1)
 DIRNAME    = $(filter-out %:,$(patsubst %\,%,$(dir $1)))
-RM         = del /f 2>nul
+RM         = del /f /q 2>nul
 RMDIR      = call && (if exist $1 rmdir /s /q $1)
 MKDIR      = call && (if not exist $1 mkdir $1)
 PREFIX    ?= C:
@@ -28,7 +28,7 @@ CP         = copy /y
 EXMPL_DIR  = $(call NATIVEPATH,$(INSTALLLOC)/CEdev/examples)
 CPDIR      = xcopy /e /i /q /r /y /b
 CP_EXMPLS  = $(call MKDIR,$(EXMPL_DIR)) && $(CPDIR) $(call NATIVEPATH,$(CURDIR)/examples) $(EXMPL_DIR)
-ARCH       = $(call MKDIR,release) && cd tools\installer && ISCC.exe /DAPP_VERSION=8.4 /DDIST_PATH=$(call NATIVEPATH,$(DESTDIR)$(PREFIX)/CEdev) installer.iss && \
+ARCH       = $(call MKDIR,release) && cd tools\installer && ISCC.exe /DAPP_VERSION=9.0 /DDIST_PATH=$(call NATIVEPATH,$(DESTDIR)$(PREFIX)/CEdev) installer.iss && \
              cd ..\.. && move /y tools\installer\CEdev.exe release\\
 QUOTE_ARG  = "$(subst ",',$1)"#'
 APPEND     = @echo.$(subst ",^",$(subst \,^\,$(subst &,^&,$(subst |,^|,$(subst >,^>,$(subst <,^<,$(subst ^,^^,$1))))))) >>$@
@@ -55,30 +55,16 @@ APPEND_FILES = $(foreach file,$(addprefix ../../lib/$2/,$(notdir $3)),$(call APP
 TOOLSDIR   := $(call NATIVEPATH,$(CURDIR)/tools)
 SRCDIR     := $(call NATIVEPATH,$(CURDIR)/src)
 FASMGDIR   := $(call NATIVEPATH,$(TOOLSDIR)/fasmg)
-CONVHEXDIR := $(call NATIVEPATH,$(TOOLSDIR)/convhex)
-CONVPNGDIR := $(call NATIVEPATH,$(TOOLSDIR)/convpng)
-CONVCSVDIR := $(call NATIVEPATH,$(TOOLSDIR)/convcsv)
+CONVBINDIR := $(call NATIVEPATH,$(TOOLSDIR)/convbin)
+CONVIMGDIR := $(call NATIVEPATH,$(TOOLSDIR)/convimg)
 CONVFNTDIR := $(call NATIVEPATH,$(TOOLSDIR)/convfont)
 CEDIR      := $(call NATIVEPATH,$(SRCDIR)/ce)
 STDDIR     := $(call NATIVEPATH,$(SRCDIR)/std)
 STARTDIR   := $(call NATIVEPATH,$(SRCDIR)/startup)
 
-FASMG      := $(call NATIVEPATH,$(FASMGDIR)/fasmg)
-CONVHEX    := $(call NATIVEPATH,$(CONVHEXDIR)/convhex)
-CONVPNG    := $(call NATIVEPATH,$(CONVPNGDIR)/convpng)
-CONVCSV    := $(call NATIVEPATH,$(CONVCSVDIR)/convcsv)
-CONVFONT   := $(call NATIVEPATH,$(CONVFNTDIR)/convfont)
 FASMG_EZ80 := $(call NATIVEPATH,$(SRCDIR)/include/ez80.inc)
 
-ifeq ($(OS),Windows_NT)
-FASMG      := $(call NATIVEPATH,$(FASMGDIR)/fasmg.exe)
-CONVHEX    := $(call NATIVEPATH,$(CONVHEXDIR)/convhex.exe)
-CONVPNG    := $(call NATIVEPATH,$(CONVPNGDIR)/convpng.exe)
-CONVCSV    := $(call NATIVEPATH,$(CONVCSVDIR)/convcsv.exe)
-CONVFONT   := $(call NATIVEPATH,$(CONVFNTDIR)/convfont.exe)
-endif
-
-BIN        := $(call NATIVEPATH,$(TOOLSDIR)/zds)
+BIN        := $(call NATIVEPATH,$(TOOLSDIR))
 
 LIBRARYDIR  = $(call NATIVEPATH,$(SRCDIR)/$1)
 
@@ -94,19 +80,34 @@ INSTALLST  := $(call NATIVEPATH,$(CEDEVDIR)/lib/static)
 INSTALLLI  := $(call NATIVEPATH,$(CEDEVDIR)/lib/linked)
 DIRS       := $(CEDEVDIR) $(INSTALLBIN) $(INSTALLLIB) $(INSTALLINC) $(INSTALLBF) $(INSTALLLL) $(INSTALLIO) $(INSTALLSH) $(INSTALLST) $(INSTALLLI)
 
+ifeq ($(OS),Windows_NT)
+FASMG      := $(call NATIVEPATH,$(FASMGDIR)/fasmg.exe)
+CONVBIN    := $(call NATIVEPATH,$(CONVBINDIR)/bin/convbin.exe)
+CONVIMG    := $(call NATIVEPATH,$(CONVIMGDIR)/bin/convimg.exe)
+CONVFONT   := $(call NATIVEPATH,$(CONVFNTDIR)/convfont.exe)
+MAKEBIN    := $(call NATIVEPATH,$(TOOLSDIR)/make/make.exe)
+CPMAKE     := $(CP) $(MAKEBIN) $(INSTALLBIN)
+else
+FASMG      := $(call NATIVEPATH,$(FASMGDIR)/fasmg)
+CONVBIN    := $(call NATIVEPATH,$(CONVBINDIR)/bin/convbin)
+CONVIMG    := $(call NATIVEPATH,$(CONVIMGDIR)/bin/convimg)
+CONVFONT   := $(call NATIVEPATH,$(CONVFNTDIR)/convfont)
+MAKEBIN    :=
+CPMAKE     :=
+endif
+
 STATIC_FILES := $(wildcard src/std/static/*.src) $(patsubst src/std/static/%.c,src/std/static/build/%.src,$(wildcard src/std/static/*.c))
 LINKED_FILES := $(wildcard src/std/linked/*.src) $(patsubst src/std/linked/%.c,src/std/linked/build/%.src,$(wildcard src/std/linked/*.c))
 SHARED_FILES := $(wildcard src/ce/*.src src/std/shared/*.src) $(patsubst src/std/shared/%.c,src/std/shared/build/%.src,$(wildcard src/std/shared/*.c))
 FILEIO_FILES := $(wildcard src/std/fileio/*.src) $(patsubst src/std/fileio/%.c,src/std/fileio/build/%.src,$(wildcard src/std/fileio/*.c))
 
-all: $(CONVHEX) $(CONVPNG) $(CONVCSV) $(CONVFONT) $(LIBRARIES) ce std startup
+all: $(CONVBIN) $(CONVIMG) $(CONVFONT) $(LIBRARIES) ce std startup
 	@echo Toolchain built.
 
 clean: $(addprefix clean-,$(LIBRARIES)) clean-ce clean-std clean-startup
 	$(MAKE) -C $(FASMGDIR) clean
-	$(MAKE) -C $(CONVHEXDIR) clean
-	$(MAKE) -C $(CONVPNGDIR) clean
-	$(MAKE) -C $(CONVCSVDIR) clean
+	$(MAKE) -C $(CONVBINDIR) clean
+	$(MAKE) -C $(CONVIMGDIR) clean
 	$(MAKE) -C $(CONVFNTDIR) clean
 	$(RM) linker_script
 	$(call RMDIR,release)
@@ -118,12 +119,10 @@ clean: $(addprefix clean-,$(LIBRARIES)) clean-ce clean-std clean-startup
 #----------------------------
 $(FASMG):
 	$(MAKE) -C $(FASMGDIR)
-$(CONVHEX):
-	$(MAKE) -C $(CONVHEXDIR)
-$(CONVPNG):
-	$(MAKE) -C $(CONVPNGDIR)
-$(CONVCSV):
-	$(MAKE) -C $(CONVCSVDIR)
+$(CONVBIN):
+	$(MAKE) -C $(CONVBINDIR) release
+$(CONVIMG):
+	$(MAKE) -C $(CONVIMGDIR) release
 $(CONVFONT):
 	$(MAKE) -C $(CONVFNTDIR)
 #----------------------------
@@ -190,16 +189,14 @@ install: $(DIRS) chmod all linker_script
 	$(CP) $(call NATIVEPATH,$(SRCDIR)/makefile.mk) $(call NATIVEPATH,$(INSTALLINC)/.makefile)
 	$(CP) $(call NATIVEPATH,linker_script) $(call NATIVEPATH,$(INSTALLINC)/.linker_script)
 	$(CP) $(FASMG) $(INSTALLBIN)
-	$(CP) $(CONVHEX) $(INSTALLBIN)
-	$(CP) $(CONVPNG) $(INSTALLBIN)
-	$(CP) $(CONVCSV) $(INSTALLBIN)
+	$(CP) $(CONVBIN) $(INSTALLBIN)
+	$(CP) $(CONVIMG) $(INSTALLBIN)
 	$(CP) $(CONVFONT) $(INSTALLBIN)
-	$(CP) $(call NATIVEPATH,$(BIN)/*) $(INSTALLBIN)
+	$(CPMAKE)
 	$(MAKE) -C $(FASMGDIR) install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
 	$(foreach library,$(LIBRARIES),$(MAKE) -C $(call LIBRARYDIR,$(library)) install PREFIX=$(call QUOTE_ARG,$(PREFIX)) DESTDIR=$(call QUOTE_ARG,$(DESTDIR))$(newline))
 	$(MAKE) -C $(CEDIR) install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
 	$(MAKE) -C $(STDDIR) install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
-	$(CPDIR) $(call NATIVEPATH,$(SRCDIR)/compatibility/*) $(call NATIVEPATH,$(INSTALLINC))
 
 chmod:
 	$(CHMOD)
@@ -215,9 +212,9 @@ dist release: install
 #----------------------------
 # libraries release rules
 #----------------------------
-dist-libs release-libs: clibraries $(CONVHEX) $(LIBRARIES)
+dist-libs release-libs: clibraries $(CONVBIN) $(LIBRARIES)
 	$(foreach library,$(LIBRARIES),$(CP) $(call NATIVEPATH,$(call LIBRARYDIR,$(library))/$(library).8xv) $(call NATIVEPATH,clibraries/$(library).8xv)$(newline))
-	$(CONVHEX) -g $(words $(LIBRARIES)) $(foreach library,$(LIBRARIES),$(call LIBRARYDIR,$(library))/$(library).8xv )$(call NATIVEPATH,clibraries/clibs.8xg)
+	$(CONVBIN) --oformat 8xg-auto-extract $(foreach library,$(LIBRARIES),$(addprefix --input ,$(call LIBRARYDIR,$(library))/$(library).8xv)) --output $(call NATIVEPATH,clibraries/clibs.8xg)
 clibraries:
 	$(call MKDIR,clibraries)
 
@@ -236,18 +233,20 @@ doxygen:
 linker_script: std
 	$(RM) $(call QUOTE_ARG,$@)
 	@echo Generating linker script...
-	$(call APPEND,symbol __low_bss = bss.base)
-	$(call APPEND,symbol __len_bss = bss.length)
-	$(call APPEND,symbol __heaptop = bss.high)
-	$(call APPEND,symbol __heapbot = bss.top)
-	$(call APPEND,order $(subst $(space),$(comma) ,header icon launcher libs startup cleanup exit code data strsect text))
+	$(call APPEND,require __init$(comma) __startup$(comma) _exit$(comma) __findlibload if .libs.length)
+	$(call APPEND,provide __low_bss = .bss.base)
+	$(call APPEND,provide __len_bss = .bss.length)
+	$(call APPEND,provide __heaptop = .bss.high)
+	$(call APPEND,provide __heapbot = .bss.top)
+	$(call APPEND,provide __relocationstart = .libs.base)
+	$(call APPEND,order $(subst $(space),$(comma) ,.header .icon .launcher .libs .startup .cleanup .exit .text .data .rodata))
 	$(call APPEND,if STATIC)
-	$(call APPEND_FILES,	srcs ,static,$(STATIC_FILES))
+	$(call APPEND_FILES,	source ,static,$(STATIC_FILES))
 	$(call APPEND,else)
-	$(call APPEND_FILES,	srcs ,linked,$(LINKED_FILES))
+	$(call APPEND_FILES,	source ,linked,$(LINKED_FILES))
 	$(call APPEND,end if)
-	$(call APPEND_FILES,srcs ,shared,$(SHARED_FILES))
-	$(call APPEND_FILES,srcs ,fileio,$(FILEIO_FILES))
+	$(call APPEND_FILES,source ,shared,$(SHARED_FILES))
+	$(call APPEND_FILES,source ,fileio,$(FILEIO_FILES))
 
 #----------------------------
 # makefile help rule

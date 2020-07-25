@@ -6,7 +6,7 @@
 ifeq ($(OS),Windows_NT)
 SHELL      =cmd.exe
 NATIVEPATH =$(subst /,\,$(1))
-RM         =del /f 2>nul
+RM         =del /f /q 2>nul
 CP         =echo f|xcopy /y
 PREFIX    ?=C:
 NAME       =fasmg.exe
@@ -38,8 +38,9 @@ INC ?=$(call NATIVEPATH,$(DEV)/include/fasmg-ez80/)
 INSTALLLOC :=$(call NATIVEPATH,$(DESTDIR)$(DEV))
 
 INCDIR     :=$(call NATIVEPATH,../../src/include/)
-FILES      :=$(addprefix $(INCDIR),ez80.inc ld.fasmg ti84pceg.inc tiformat.inc)
-INCFILES   :=$(addprefix $(INC),ez80.inc ld.fasmg ti84pceg.inc tiformat.inc)
+INCLUDES   :=commands.alm ez80.alm ez80.inc ld.alm ti84pceg.inc tiformat.inc
+FILES      :=$(addprefix $(INCDIR),$(INCLUDES))
+INCFILES   :=$(addprefix $(INC),$(INCLUDES))
 
 all: $(FILES)
 	$(CP) $(call NATIVEPATH,$(FASMGP)) . $(ADDEXE)

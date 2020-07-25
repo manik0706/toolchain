@@ -1,5 +1,5 @@
 #----------------------------
-# Core C Makefile
+# Core C/C++ Makefile
 #----------------------------
 CLEANUP             ?= YES
 BSSHEAP_LOW         ?= D031F6
@@ -7,9 +7,12 @@ BSSHEAP_HIGH        ?= D13FD6
 STACK_HIGH          ?= D1A87E
 INIT_LOC            ?= D1A87F
 USE_FLASH_FUNCTIONS ?= YES
-OUTPUT_MAP          ?= YES
+UPPERCASE_NAME      ?= YES
+OUTPUT_MAP          ?= NO
 ARCHIVED            ?= NO
-OPT_MODE            ?= -optsize
+OPT_MODE            ?= -O3
+EXTRA_CFLAGS        ?=
+EXTRA_CXXFLAGS      ?=
 #----------------------------
 SRCDIR              ?= src
 OBJDIR              ?= obj
@@ -17,7 +20,7 @@ BINDIR              ?= bin
 GFXDIR              ?= src/gfx
 #----------------------------
 
-VERSION := 8.6
+VERSION := 9.0-devel
 
 #----------------------------
 # try not to edit anything below these lines unless you know what you are doing
@@ -31,9 +34,8 @@ space := $(empty) $(empty)
 comma := ,
 
 TARGET ?= $(NAME)
-ICONPNG ?= $(ICON)
 DEBUGMODE = NDEBUG
-CCDEBUGFLAG = -nodebug
+CCDEBUGFLAG = -g0
 
 # verbosity
 V ?= 0
@@ -50,43 +52,37 @@ MAKEDIR   := $(CURDIR)
 NATIVEPATH = $(subst /,\,$1)
 WINPATH    = $(NATIVEPATH)
 WINRELPATH = $(subst /,\,$1)
-RM         = del /q /f 2>nul
 CEDEV     ?= $(call NATIVEPATH,$(realpath ..\..))
 BIN       ?= $(call NATIVEPATH,$(CEDEV)/bin)
 LD         = $(call NATIVEPATH,$(BIN)/fasmg.exe)
-CC         = $(call NATIVEPATH,$(BIN)/ez80cc.exe)
-CV         = $(call NATIVEPATH,$(BIN)/convhex.exe)
-PG         = $(call NATIVEPATH,$(BIN)/convpng.exe)
+CONVBIN    = $(call NATIVEPATH,$(BIN)/convbin.exe)
+CONVIMG    = $(call NATIVEPATH,$(BIN)/convimg.exe)
 CD         = cd
-CP         = copy /y
-MV         = move /y >nul
-NULL       = >nul 2>&1
+RM         = del /q /f 2>nul
 RMDIR      = call && (if exist $1 rmdir /s /q $1)
-MKDIR      = call && (if not exist $1 mkdir $1)
+NATIVEMKDR = call && (if not exist $1 mkdir $1)
 QUOTE_ARG  = "$(subst ",',$1)"#'
-TO_LOWER   = $1
 else
 MAKEDIR   := $(CURDIR)
 NATIVEPATH = $(subst \,/,$1)
 WINPATH    = $(shell winepath -w $1)
 WINRELPATH = $(subst /,\,$1)
-RM         = rm -f
 CEDEV     ?= $(call NATIVEPATH,$(realpath ..\..))
 BIN       ?= $(call NATIVEPATH,$(CEDEV)/bin)
-CC         = $(call NATIVEPATH,wine "$(BIN)/ez80cc.exe")
 LD         = $(call NATIVEPATH,$(BIN)/fasmg)
-CV         = $(call NATIVEPATH,$(BIN)/convhex)
-PG         = $(call NATIVEPATH,$(BIN)/convpng)
+CONVBIN    = $(call NATIVEPATH,$(BIN)/convbin)
+CONVIMG    = $(call NATIVEPATH,$(BIN)/convimg)
 CD         = cd
-CP         = cp
-MV         = mv
+RM         = rm -f
 RMDIR      = rm -rf $1
-MKDIR      = mkdir -p $1
+NATIVEMKDR = mkdir -p $1
 QUOTE_ARG  = '$(subst ','\'',$1)'#'
-TO_LOWER   = $(shell printf %s $(call QUOTE_ARG,$1) | tr [:upper:] [:lower:])
 endif
+EZCC = ez80-clang
 
-FASMG_FILES    = $(subst $(space),$(comma) ,$(patsubst %,"%",$(subst ",\",$(subst \,\\,$(call NATIVEPATH,$1)))))#"
+MKDIR = $(call NATIVEMKDR,$(call QUOTE_ARG,$(call NATIVEPATH,$1)))
+
+FASMG_FILES = $(subst $(space),$(comma) ,$(patsubst %,"%",$(subst ",\",$(subst \,\\,$(call NATIVEPATH,$1)))))#"
 LINKER_SCRIPT ?= $(CEDEV)/include/.linker_script
 
 # ensure native paths
@@ -99,7 +95,8 @@ GFXDIR := $(call NATIVEPATH,$(GFXDIR))
 TARGETBIN     := $(TARGET).bin
 TARGETMAP     := $(TARGET).map
 TARGET8XP     := $(TARGET).8xp
-ICON_ASM      := iconc.src
+ICONIMG       := $(wildcard $(call NATIVEPATH,$(ICON)))
+ICONSRC       := $(call NATIVEPATH,$(OBJDIR)/icon.src)
 
 # init conditionals
 F_STARTUP     := $(call NATIVEPATH,$(CEDEV)/lib/cstartup.src)
@@ -116,8 +113,8 @@ USERHEADERS   := $(call rwildcard,$(SRCDIR),*.h *.hpp)
 ASMSOURCES    := $(call rwildcard,$(SRCDIR),*.asm)
 
 # create links for later
-LINK_CSOURCES := $(CSOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.src)
-LINK_CPPSOURCES := $(CPPSOURCES:$(SRCDIR)/%=$(OBJDIR)/%.src)
+LINK_CSOURCES := $(CSOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.c.src)
+LINK_CPPSOURCES := $(CPPSOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.cpp.src)
 LINK_ASMSOURCES := $(ASMSOURCES)
 
 # files created to be used for linking
@@ -125,23 +122,44 @@ LINK_FILES   := $(LINK_CSOURCES) $(LINK_CPPSOURCES) $(LINK_ASMSOURCES)
 LINK_LIBS    := $(wildcard $(CEDEV)/lib/libload/*.lib)
 LINK_LIBLOAD := $(CEDEV)/lib/libload.lib
 
-# check if there is an icon present that we can convert; if so, generate a recipe to build it properly
-ifneq ("$(wildcard $(ICONPNG))","")
-F_ICON     := $(OBJDIR)/$(ICON_ASM)
-ICON_CONV  := $(PG) -c $(ICONPNG)$(comma)$(call NATIVEPATH,$(F_ICON))$(comma)$(DESCRIPTION)
-LINK_ICON   = , $(call FASMG_FILES,$(F_ICON)) used
+# check if there is an icon present that we can convert
+# if so, generate a recipe to build it
+ifneq ($(ICONIMG),)
+ICON_CONV := @echo "[convimg] $(ICONIMG)" && $(CONVIMG) --icon $(call QUOTE_ARG,$(ICONIMG)) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
+LINK_REQUIRE += -i $(call QUOTE_ARG,require ___icon)
+LINK_ICON = , $(call FASMG_FILES,$(ICONSRC))
+else
+ifneq ($(DESCRIPTION),)
+ICON_CONV := @echo "[convimg] description" && $(CONVIMG) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
+LINK_REQUIRE += -i $(call QUOTE_ARG,require ___description)
+LINK_ICON = , $(call FASMG_FILES,$(ICONSRC))
+ICONIMG :=
+else
+ICONSRC :=
+endif
 endif
 
-# determine if output should be archived or compressed
+# determine output target flags
 ifeq ($(ARCHIVED),YES)
-CVFLAGS += -a
+CONVBINFLAGS += --archive
 endif
 ifeq ($(COMPRESSED),YES)
-CVFLAGS += -x
+CONVBINFLAGS += --oformat 8xp-auto-decompress
+else
+CONVBINFLAGS += --oformat 8xp
 endif
+ifeq ($(UPPERCASE_NAME),YES)
+CONVBINFLAGS += --uppercase
+endif
+CONVBINFLAGS += --name $(TARGET)
+
+# link cleanup source
 ifeq ($(CLEANUP),YES)
-LINK_CLEANUP = , $(call FASMG_FILES,$(F_CLEANUP)) used
+LINK_REQUIRE += -i $(call QUOTE_ARG,require __ccleanup)
+LINK_CLEANUP  = , $(call FASMG_FILES,$(F_CLEANUP))
 endif
+
+# output debug map file
 ifeq ($(OUTPUT_MAP),YES)
 LDMAPFLAG = -i map
 endif
@@ -153,67 +171,69 @@ else
 STATIC := 1
 endif
 
-ifneq ("$(EXTRA_CFLAGS)","")
-EXTRA_COMPILER_FLAGS := $(addprefix -define:,$(EXTRA_CFLAGS))
-endif
-
-# define the C flags used by the Zilog compiler
-CFLAGS ?= \
-    -noasm $(CCDEBUGFLAG) -nogenprint -keepasm -quiet $(OPT_MODE) -cpu:EZ80F91 -noreduceopt -nolistinc -nomodsect -define:_EZ80F91 -define:_EZ80 -define:$(DEBUGMODE) $(EXTRA_COMPILER_FLAGS)
+# define the C/C++ flags used by Clang
+CFLAGS ?= -S -nostdinc -isystem $(CEDEV)/include $(CCDEBUGFLAG) $(OPT_MODE) -Dinterrupt="__attribute__((__interrupt__))" -Dreentrant= -D_EZ80 -D$(DEBUGMODE) $(EXTRA_CFLAGS)
+CFLAGS := $(CFLAGS) -Wno-main-return-type
+CXXFLAGS := $(CFLAGS) -fno-exceptions $(EXTRA_CXXFLAGS)
 
 # these are the linker flags, basically organized to properly set up the environment
 LDFLAGS ?= \
-	$(call QUOTE_ARG,$(call NATIVEPATH,$(CEDEV)/include/fasmg-ez80/ld.fasmg)) \
+	-n \
+	$(call QUOTE_ARG,$(call NATIVEPATH,$(CEDEV)/include/fasmg-ez80/ld.alm)) \
 	-i $(call QUOTE_ARG,include $(call FASMG_FILES,$(LINKER_SCRIPT))) \
 	$(LDDEBUGFLAG) \
 	$(LDMAPFLAG) \
-	-i $(call QUOTE_ARG,range bss $$$(BSSHEAP_LOW) : $$$(BSSHEAP_HIGH)) \
-	-i $(call QUOTE_ARG,symbol __stack = $$$(STACK_HIGH)) \
-	-i $(call QUOTE_ARG,locate header at $$$(INIT_LOC)) \
+	-i $(call QUOTE_ARG,range .bss $$$(BSSHEAP_LOW) : $$$(BSSHEAP_HIGH)) \
+	-i $(call QUOTE_ARG,provide __stack = $$$(STACK_HIGH)) \
+	-i $(call QUOTE_ARG,locate .header at $$$(INIT_LOC)) \
 	-i $(call QUOTE_ARG,STATIC := $(STATIC)) \
-	-i $(call QUOTE_ARG,srcs $(call FASMG_FILES,$(F_LAUNCHER)) used if libs.length$(LINK_ICON)$(LINK_CLEANUP)$(comma) $(call FASMG_FILES,$(F_STARTUP)) used$(comma) $(call FASMG_FILES,$(LINK_FILES))) \
-	-i $(call QUOTE_ARG,libs $(call FASMG_FILES,$(LINK_LIBLOAD)) used if libs.length$(comma) $(call FASMG_FILES,$(LINK_LIBS)))
+	$(LINK_REQUIRE) \
+	-i $(call QUOTE_ARG,source $(call FASMG_FILES,$(F_LAUNCHER))$(LINK_ICON)$(LINK_CLEANUP)$(comma) $(call FASMG_FILES,$(F_STARTUP))$(comma) $(call FASMG_FILES,$(LINK_FILES))) \
+	-i $(call QUOTE_ARG,library $(call FASMG_FILES,$(LINK_LIBLOAD))$(comma) $(call FASMG_FILES,$(LINK_LIBS)))
 
 # this rule is trigged to build everything
-all: dirs $(BINDIR)/$(TARGET8XP) ;
+all: $(BINDIR)/$(TARGET8XP) ;
 
 # this rule is trigged to build debug everything
 debug: LDDEBUGFLAG = -i dbg
 debug: DEBUGMODE = DEBUG
-debug: CCDEBUGFLAG = -debug
-debug: dirs $(BINDIR)/$(TARGET8XP) ;
-
-dirs:
-	@echo C CE SDK Version $(VERSION) && \
-	$(call MKDIR,$(BINDIR)) && \
-	$(call MKDIR,$(OBJDIR))
+#debug: CCDEBUGFLAG = -g
+debug: $(BINDIR)/$(TARGET8XP) ;
 
 $(BINDIR)/$(TARGET8XP): $(BINDIR)/$(TARGETBIN)
-	$(Q)$(CD) $(BINDIR) && \
-	$(CV) $(CVFLAGS) $(notdir $<) $(notdir $@)
+	$(Q)$(call MKDIR,$(@D))
+	$(Q)$(CONVBIN) $(CONVBINFLAGS) --input $(call QUOTE_ARG,$(call NATIVEPATH,$<)) --output $(call QUOTE_ARG,$(call NATIVEPATH,$@))
 
-$(BINDIR)/$(TARGETBIN): $(LINK_FILES) $(F_ICON)
-	$(Q)$(LD) $(LDFLAGS) $@
+$(BINDIR)/$(TARGETBIN): $(ICONSRC) $(LINK_FILES)
+	$(Q)$(call MKDIR,$(@D))
+	$(Q)echo [linking] $(call NATIVEPATH,$@)
+	$(Q)$(LD) $(LDFLAGS) $(call NATIVEPATH,$@)
 
 # this rule handles conversion of the icon, if it is ever updated
-$(OBJDIR)/$(ICON_ASM): $(ICONPNG)
+$(ICONSRC): $(ICONIMG)
+	$(Q)$(call MKDIR,$(@D))
 	$(Q)$(ICON_CONV)
 
-# these rules compile the source files into object files
-$(OBJDIR)/%.src: $(SRCDIR)/%.c $(USERHEADERS)
-	$(Q)$(call MKDIR,$(call NATIVEPATH,$(@D))) && \
-	$(CC) $(CFLAGS) $(call QUOTE_ARG,$(call WINPATH,$(addprefix $(MAKEDIR)/,$<))) && \
-	$(MV) $(call QUOTE_ARG,$(call TO_LOWER,$(@F))) $(call QUOTE_ARG,$@)
+# these rules compile the source files into assembly files
+$(OBJDIR)/%.c.src: $(SRCDIR)/%.c $(USERHEADERS)
+	$(Q)$(call MKDIR,$(@D))
+	$(Q)echo [compiling] $(call NATIVEPATH,$<)
+	$(Q)$(EZCC) $(CFLAGS) $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$<)) -o $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$@))
+
+$(OBJDIR)/%.cpp.src: $(SRCDIR)/%.cpp $(USERHEADERS)
+	$(Q)$(call MKDIR,$(@D))
+	$(Q)echo [compiling] $(call NATIVEPATH,$<)
+	$(Q)$(EZCC) $(CXXFLAGS) $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$<)) -o $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$@))
 
 clean:
 	$(Q)$(call RMDIR,$(OBJDIR))
 	$(Q)$(call RMDIR,$(BINDIR))
-	@echo Cleaned build files.
+	@echo Removed build objects and binaries.
 
 gfx:
-	$(Q)$(CD) $(GFXDIR) && convpng
+	$(Q)$(CD) $(GFXDIR) && $(CONVIMG)
 
 version:
-	@echo C SDK Version $(VERSION)
+	$(Q)echo CE C SDK Version $(VERSION)
 
-.PHONY: all clean version gfx dirs debug
+.PHONY: all clean version gfx debug
