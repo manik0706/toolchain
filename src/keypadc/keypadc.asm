@@ -55,10 +55,14 @@ kb_ScanGroup:
 ;  arg0 : Keypad group number
 ; Returns:
 ;  Value of entire group (Keys ORd)
-	pop	hl
-	pop	bc
-	push	bc
-	push	hl
+	ld	hl,3
+	add	hl,sp
+	ld	a,(hl)
+	cp	a,8
+	jr	nc,.found
+	add	a,a
+	add	a,$10
+	ld	c,a
 	di
 	ld	hl,$f50200		; DI_Mode = $f5xx00
 	ld	(hl),h
@@ -66,17 +70,9 @@ kb_ScanGroup:
 .loop:
 	cp	a,(hl)
 	jr	nz,.loop
-	ld	a,c
-	cp	a,8
-	jr	nc,.found
-	ld	l,a
-	mlt	hl
-	ld	de,kbdG1-2
-	add	hl,de
-	ld	a,(hl)
-	ret
+	ld	l,c
 .found:
-	xor	a,a
+	xor	a,(hl)
 	ret
 
 ;-------------------------------------------------------------------------------
@@ -88,30 +84,25 @@ kb_AnyKey:
 ; Returns:
 ;  0 if no key is pressed
 	di
-	ld	hl,$f50200		; DI_Mode = $f5xx00
-	ld	(hl),h
+	ld	bc,2
+	ld	hl,$f51200		; DI_Mode = $f5xx00
+	ld	(hl),c
 	xor	a,a
 .loop:
 	cp	a,(hl)
 	jr	nz,.loop
-	ld	l,$12			; kbdG1 = $f5xx12
+	ld	l,h			; kbdG1 = $f5xx12
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
-	inc	hl
-	inc	hl
+	add	hl,bc
 	or	a,(hl)
 	ret

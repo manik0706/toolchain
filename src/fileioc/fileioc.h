@@ -382,6 +382,15 @@ uint8_t ti_RclVar(const uint8_t var_type, const char *var_name, void **data_stru
  */
 bool ti_ArchiveHasRoom(uint24_t num_bytes);
 
+
+/**
+ * Set routines to run before and after a garbage collect would be triggered.
+ * @param routine Routine to run following a garbage collect. NULL sets it to do nothing.
+ * @note If your program uses graphx, use gfx_End and gfx_Begin to reset graphics before, and setup graphics after the garbage collect.
+ * */
+void ti_SetGCBehavior(void (*before)(void), void (*after)(void));
+
+
 /**
  * Allocates space for a real variable
  * @returns Pointer to variable

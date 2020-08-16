@@ -1,6 +1,7 @@
 #----------------------------
 # Core C/C++ Makefile
 #----------------------------
+MAIN_ARGS           ?= NO
 CLEANUP             ?= YES
 BSSHEAP_LOW         ?= D031F6
 BSSHEAP_HIGH        ?= D13FD6
@@ -58,9 +59,9 @@ LD         = $(call NATIVEPATH,$(BIN)/fasmg.exe)
 CONVBIN    = $(call NATIVEPATH,$(BIN)/convbin.exe)
 CONVIMG    = $(call NATIVEPATH,$(BIN)/convimg.exe)
 CD         = cd
-RM         = del /q /f 2>nul
-RMDIR      = call && (if exist $1 rmdir /s /q $1)
-NATIVEMKDR = call && (if not exist $1 mkdir $1)
+RM         = ( del /q /f $1 2>nul || call )
+RMDIR      = ( rmdir /s /q $1 2>nul || call )
+NATIVEMKDR = ( mkdir $1 2>nul || call )
 QUOTE_ARG  = "$(subst ",',$1)"#'
 else
 MAKEDIR   := $(CURDIR)
@@ -73,7 +74,7 @@ LD         = $(call NATIVEPATH,$(BIN)/fasmg)
 CONVBIN    = $(call NATIVEPATH,$(BIN)/convbin)
 CONVIMG    = $(call NATIVEPATH,$(BIN)/convimg)
 CD         = cd
-RM         = rm -f
+RM         = rm -f $1
 RMDIR      = rm -rf $1
 NATIVEMKDR = mkdir -p $1
 QUOTE_ARG  = '$(subst ','\'',$1)'#'
@@ -125,18 +126,25 @@ LINK_LIBLOAD := $(CEDEV)/lib/libload.lib
 # check if there is an icon present that we can convert
 # if so, generate a recipe to build it
 ifneq ($(ICONIMG),)
-ICON_CONV := @echo "[convimg] $(ICONIMG)" && $(CONVIMG) --icon $(call QUOTE_ARG,$(ICONIMG)) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
+ICON_CONV := @echo [convimg] $(ICONIMG) && $(CONVIMG) --icon $(call QUOTE_ARG,$(ICONIMG)) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
 LINK_REQUIRE += -i $(call QUOTE_ARG,require ___icon)
 LINK_ICON = , $(call FASMG_FILES,$(ICONSRC))
 else
 ifneq ($(DESCRIPTION),)
-ICON_CONV := @echo "[convimg] description" && $(CONVIMG) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
+ICON_CONV := @echo [convimg] description && $(CONVIMG) --icon-output $(call QUOTE_ARG,$(ICONSRC)) --icon-format asm --icon-description $(DESCRIPTION)
 LINK_REQUIRE += -i $(call QUOTE_ARG,require ___description)
 LINK_ICON = , $(call FASMG_FILES,$(ICONSRC))
 ICONIMG :=
 else
 ICONSRC :=
 endif
+endif
+
+# check if gfx directory exists
+ifneq ($(wildcard $(GFXDIR)/.),)
+GFXCMD := $(CD) $(GFXDIR) && $(CONVIMG)
+else
+GFXCMD :=
 endif
 
 # determine output target flags
@@ -152,6 +160,11 @@ ifeq ($(UPPERCASE_NAME),YES)
 CONVBINFLAGS += --uppercase
 endif
 CONVBINFLAGS += --name $(TARGET)
+
+# support main args?
+ifeq ($(MAIN_ARGS),YES)
+LINK_DEFINITIONS += -i __MAIN_ARGS=1
+endif
 
 # link cleanup source
 ifeq ($(CLEANUP),YES)
@@ -187,6 +200,7 @@ LDFLAGS ?= \
 	-i $(call QUOTE_ARG,provide __stack = $$$(STACK_HIGH)) \
 	-i $(call QUOTE_ARG,locate .header at $$$(INIT_LOC)) \
 	-i $(call QUOTE_ARG,STATIC := $(STATIC)) \
+	$(LINK_DEFINITIONS) \
 	$(LINK_REQUIRE) \
 	-i $(call QUOTE_ARG,source $(call FASMG_FILES,$(F_LAUNCHER))$(LINK_ICON)$(LINK_CLEANUP)$(comma) $(call FASMG_FILES,$(F_STARTUP))$(comma) $(call FASMG_FILES,$(LINK_FILES))) \
 	-i $(call QUOTE_ARG,library $(call FASMG_FILES,$(LINK_LIBLOAD))$(comma) $(call FASMG_FILES,$(LINK_LIBS)))
@@ -226,12 +240,11 @@ $(OBJDIR)/%.cpp.src: $(SRCDIR)/%.cpp $(USERHEADERS)
 	$(Q)$(EZCC) $(CXXFLAGS) $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$<)) -o $(call QUOTE_ARG,$(addprefix $(MAKEDIR)/,$@))
 
 clean:
-	$(Q)$(call RMDIR,$(OBJDIR))
-	$(Q)$(call RMDIR,$(BINDIR))
+	$(Q)$(call RMDIR,$(OBJDIR) $(BINDIR))
 	@echo Removed build objects and binaries.
 
 gfx:
-	$(Q)$(CD) $(GFXDIR) && $(CONVIMG)
+	$(Q)$(GFXCMD)
 
 version:
 	$(Q)echo CE C SDK Version $(VERSION)
