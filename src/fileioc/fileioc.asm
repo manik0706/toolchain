@@ -2,7 +2,7 @@
 include '../include/library.inc'
 ;-------------------------------------------------------------------------------
 
-library 'FILEIOC', 5
+library 'FILEIOC', 6
 
 ;-------------------------------------------------------------------------------
 ; no dependencies
@@ -58,6 +58,12 @@ library 'FILEIOC', 5
 ; v5 functions
 ;-------------------------------------------------------------------------------
 	export ti_ArchiveHasRoom
+
+;-------------------------------------------------------------------------------
+; v6 functions
+;-------------------------------------------------------------------------------
+	export ti_SetGCBehavior
+
 
 ;-------------------------------------------------------------------------------
 vat_ptr0 := $d0244e
@@ -461,7 +467,7 @@ ti_SetArchiveStatus:
 .set_archived:
 	push	bc
 	pop	af
-	call	z, _Arc_Unarc
+	call	z, util_Arc_Unarc
 	jr	.relocate_var
 .set_not_archived:
 	push	bc
@@ -1206,7 +1212,7 @@ ti_Rename:
 	inc	de
 	call	_Mov8b
 	call	_PushOP1		; save old name
-	ld	hl, _Arc_Unarc
+	ld	hl, util_Arc_Unarc
 	ld	(.smc_archive), hl
 	pop	hl			; new name
 	ld	de, OP1 + 1
@@ -1221,10 +1227,10 @@ ti_Rename:
 	jr	c, .return_2
 	call	_ChkInRam
 	jr	nz, .in_archive
-	ld	hl, $f8			; $f8 = ret
+	ld	hl, util_no_op			; no-op routine instead of assuming $F8 points to a ret instruction lol
 	ld	(.smc_archive), hl
 	call	_PushOP1
-	call	_Arc_Unarc
+	call	util_Arc_Unarc
 	call	_PopOP1
 	jr	.locate_program
 .in_archive:
@@ -1257,7 +1263,7 @@ ti_Rename:
 	ldir
 .is_zero:
 	call	_PopOP1
-	call	_Arc_Unarc
+	call	util_Arc_Unarc
 .smc_archive := $-3
 	call	_PopOP1
 	call	_ChkFindSym
@@ -1385,6 +1391,7 @@ ti_ArchiveHasRoom:
 	pop	de
 	ex	(sp),hl
 	push	de
+util_ArchiveHasRoom:
 	ld	bc,12
 	add	hl,bc
 	call	_FindFreeArcSpot
@@ -1392,6 +1399,36 @@ ti_ArchiveHasRoom:
 	ret	nz
 	dec	a
 	ret
+
+;-------------------------------------------------------------------------------
+ti_SetGCBehavior:
+;Set routines to run before and after a garbage collect would be triggered.
+; args:
+;   sp + 3 : pointer to routine to be run before. Set to 0 to use default handler.
+;	sp + 6 : pointer to routine to be run after. Set to 0 to use default handler.
+; return:
+;   None
+	pop	de
+	pop	bc
+	ex	(sp),hl
+	push	bc
+	push	de
+	add	hl,de
+	or	a,a
+	sbc	hl,de
+	jr	nz,.notdefault1
+	ld	hl,util_post_gc_default_handler
+.notdefault1:
+	ld	(util_post_gc_handler),hl
+	sbc	hl,hl
+	adc	hl,bc
+	jr	nz,.notdefault2
+	ld	hl,util_pre_gc_default_handler
+.notdefault2:
+	ld	(util_pre_gc_handler),hl
+	ret
+util_post_gc_default_handler := util_no_op
+util_pre_gc_default_handler := util_no_op
 
 ;-------------------------------------------------------------------------------
 ; internal library routines
@@ -1410,6 +1447,7 @@ util_skip_archive_header:
 	inc	hl
 	add	hl, bc
 	ex	de, hl
+util_no_op:
 	ret
 
 ;-------------------------------------------------------------------------------
@@ -1572,6 +1610,22 @@ util_set_offset:
 	call	util_get_offset_ptr
 	ld	(hl), bc
 	ret
+
+util_Arc_Unarc: ;properly handle garbage collects :P
+	call	_ChkInRAM
+	jp	nz,_Arc_Unarc ;if the file is already in archive, we won't trigger a gc
+	ex	hl,de
+	call	_LoadDEInd_s
+	ex	hl,de
+	call	util_ArchiveHasRoom
+	jp	nz,_Arc_Unarc ;gc will not be triggered
+	call	util_pre_gc_default_handler
+util_pre_gc_handler:=$-3
+	call	_Arc_Unarc
+	jp	util_post_gc_default_handler
+util_post_gc_handler:=$-3
+
+
 
 ;-------------------------------------------------------------------------------
 ; Internal library data
