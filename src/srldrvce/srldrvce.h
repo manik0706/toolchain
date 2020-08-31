@@ -99,6 +99,12 @@ typedef struct srl_Device {
 srl_error_t srl_Init(srl_device_t *srl, usb_device_t dev, void *buf, size_t size, uint8_t interface);
 
 /**
+ * Call this function in the USB event handler passed to usb_Init.
+ * todo: finish this description
+ */
+usb_error_t srl_HandleEvent(usb_event_t event, void *event_data);
+
+/**
  * Set the baud rate of the device.
  * @param rate Baud rate.
  * @return USB_SUCCESS on success, otherwise an error.

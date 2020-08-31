@@ -21,6 +21,7 @@ include_library '../usbdrvce/usbdrvce.asm'
 	export srl_Read_Blocking
 	export srl_Write_Blocking
 	export srl_GetCDCStandardDescriptors
+	export srl_HandleEvent
 ;-------------------------------------------------------------------------------
 macro compare_hl_zero?
 	add	hl,de
@@ -265,6 +266,8 @@ srl_Init:
 	ld	(.epIn),a
 	ld	a,$04
 	ld	(.epOut),a
+	ld	hl,(iy + 6)
+	ld	(host_device),hl			; store host device
 	jq	.getEndpoints
 
 .host:
@@ -715,6 +718,88 @@ end iterate
 .err_nd:
 	ld	a,SRL_ERROR_NO_DEVICE
 	jq	.exit
+
+;-------------------------------------------------------------------------------
+;usb_error_t srl_HandleEvent(usb_event_t event, void *event_data);
+srl_HandleEvent:
+	ld	iy,0
+	add	iy,sp
+	ld	a,(iy+3)
+	cp	a,7 ; check if USB_DEFAULT_SETUP_EVENT
+	jq	nz,.success
+
+	ld	hl,(iy+6) ; check direction
+	ld	a,(hl)
+	cp	a,$21
+	jq	z,.in
+	cp	a,$a1
+	jq	nz,.success
+
+	inc	hl ; transfer is out
+	ld	a,$21 ; check if GET_LINE_CODING request
+	cp	a,(hl)
+	jq	nz,.success
+
+	; handle GET_LINE_CODING
+	;jq	.transfer
+	push	bc ; callback data
+	ld	bc,.callback
+	push	bc ; handler
+	ld	bc,virtual_line_coding
+	push	bc ; buffer
+	ld	bc,7
+	push	bc ; length
+
+	ld	bc,0
+	push	bc ; ep number
+	ld	bc,(host_device)
+	push	bc ; device
+	call	usb_GetDeviceEndpoint
+	pop	bc,bc
+	push	hl ; endpoint
+
+	call	usb_ScheduleTransfer
+	pop	bc,bc,bc,bc,bc
+	jq	.ignore
+
+.in:
+	inc	hl
+	ld	a,(hl)
+	cp	a,$20
+	jq	z,.transfer
+	cp	a,$22
+	jq	nz,.success
+
+	; SET_CONTROL_LINE_STATE request
+	; you know what, I really don't care
+	jq	.transfer
+.transfer:
+	push	bc ; callback data
+	ld	bc,.callback
+	push	bc ; handler
+	ld	bc,virtual_line_coding
+	push	bc ; buffer
+	dec	hl
+	push	hl ; setup
+
+	ld	bc,0
+	push	bc ; ep number
+	ld	bc,(host_device)
+	push	bc ; device
+	call	usb_GetDeviceEndpoint
+	pop	bc,bc
+	push	hl ; endpoint
+
+	call	usb_ScheduleControlTransfer
+	pop	bc,bc,bc,bc,bc
+
+.ignore:
+	ld	hl,USB_IGNORE
+	ret
+.success:
+.callback: ; todo: should this actually do something?
+	ld	hl,USB_SUCCESS
+	ret
 
 ;-------------------------------------------------------------------------------
 ;srl_error_t srl_SetRate(srl_device_t *srl, uint24_t rate);
@@ -1528,11 +1613,16 @@ dbg_WriteByte:
 ; library data
 ;-------------------------------------------------------------------------------
 
+host_device:
+	dl	0
+virtual_line_coding:
+	db	$80,$25,0,0,0,0,8
+
 setup.setlinecoding	setuppkt	$21,$20,$0000,$0000,7
 setup.ftdisetrate	setuppkt	$40,$03,$0000,$0000,0
 
 defaultlinecoding:
-db	$80,$25,0,0,0,0,8
+	db	$80,$25,0,0,0,0,8
 
 tmp tmp_data
 
@@ -1543,7 +1633,7 @@ srl_GetCDCStandardDescriptors:
 	dl .device, .configurations, .langids
 	db 2
 	dl .strings
-.device emit $12: $1201000200000040510408E0200201020001 bswap $12
+.device emit $12: $1201000202000040510408E0200201020001 bswap $12
 .configurations dl .configuration1
 .configuration1 emit $3e: $09023e00020100c0320904000001020200000524000110042402000524060001070582030800ff09040100020a0000000705040240000107058302400001 bswap $3e
 .langids dw $0304, $0409

@@ -24,14 +24,16 @@ static usb_error_t handle_usb_event(usb_event_t event, void *event_data,
 			/* Set the USB device */
 			*callback_data = event_data;
 		}
+        return USB_SUCCESS;
 	}
 
 	/* When a device is disconnected */
 	if(event == USB_DEVICE_DISCONNECTED_EVENT) {
 		*callback_data = NULL;
+        return USB_SUCCESS;
 	}
 
-	return USB_SUCCESS;
+	return srl_HandleEvent(event, event_data);
 }
 
 void main(void) {
